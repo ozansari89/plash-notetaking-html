@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notlar</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: rgba(38,38,36,1);
+            overflow: hidden;
+            width:100vw;
+            height:100vh;
+            position:relative;
+            transition: background 0.3s;
+        }
+        body.day-mode { background: rgba(255,255,255,1); }
+
+        .settings-btn {
+            position: fixed;
+            bottom:30px; right:30px;
+            width:50px; height:50px;
+            background: transparent; border:none;
+            font-size:24px; cursor:pointer; z-index:10000;
+            display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+        }
+        .settings-btn span {
+            width:4px; height:4px; background: currentColor; border-radius:50%;
+        }
+
+        .settings-menu {
+            position: fixed; bottom:90px; right:30px;
+            background: rgba(30,30,30,0.95);
+            backdrop-filter: blur(10px);
+            border:1px solid rgba(200,200,200,0.2);
+            border-radius:8px;
+            padding:12px;
+            display:none;
+            z-index:10000;
+            min-width:200px;
+        }
+        .settings-menu.active { display:block; }
+        body.day-mode .settings-menu { background: rgba(255,255,255,0.95); border-color: rgba(0,0,0,0.2); }
+
+        .menu-item { padding:10px 12px; color:white; font-size:14px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; border-radius:6px; margin-bottom:4px; }
+        .menu-item:hover { background: rgba(255,255,255,0.1); }
+        body.day-mode .menu-item { color:black; }
+        body.day-mode .menu-item:hover { background: rgba(0,0,0,0.05); }
+
+        .add-card-item { padding:10px 12px; color:white; font-size:14px; cursor:pointer; display:flex; align-items:center; gap:8px; border-top:1px solid rgba(200,200,200,0.2); margin-top:8px; }
+        .add-card-item:hover { background: rgba(255,255,255,0.1); }
+        body.day-mode .add-card-item { color:black; border-top-color: rgba(0,0,0,0.1); }
+        body.day-mode .add-card-item:hover { background: rgba(0,0,0,0.05); }
+
+        .card {
+            position:absolute;
+            background:transparent;
+            border:0.25px solid rgba(200,200,200,0.3);
+            border-radius:8px;
+            min-width:150px; min-height:100px;
+        }
+        body.day-mode .card { border-color: rgba(0,0,0,0.3); }
+        .card-header { padding:8px 12px; cursor:move; display:flex; justify-content:space-between; align-items:center; background: rgba(0,0,0,0.1); border-bottom:0.25px solid rgba(200,200,200,0.2); }
+        body.day-mode .card-header { background: rgba(0,0,0,0.02); border-bottom-color: rgba(0,0,0,0.1); }
+        .card-title {
+            color: rgba(255,255,255,0.6);
+            font-size:14px;
+            font-weight:400;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            cursor:text;
+            padding:2px 4px;
+            border-radius:3px;
+        }
+        body.day-mode .card-title { color: rgba(0,0,0,0.7); }
+        .delete-btn { background:transparent; border:none; color: rgba(255,255,255,0.4); cursor:pointer; font-size:16px; }
+        body.day-mode .delete-btn { color: rgba(0,0,0,0.4); }
+        .editor {
+            width:100%;
+            height: calc(100% - 34px);
+            background: transparent;
+            border:none;
+            color:white;
+            font-size:16px;
+            font-weight:300;
+            line-height:1.4;
+            padding:12px;
+            overflow-y:auto;
+            outline:none;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+        body.day-mode .editor { color:black; }
+        .editor:empty:before { content: attr(data-placeholder); color: rgba(255,255,255,0.2); }
+        body.day-mode .editor:empty:before { color: rgba(0,0,0,0.2); }
+
+        .resize-handle { position:absolute; bottom:0; right:0; width:20px; height:20px; cursor:nwse-resize; }
+        .resize-handle::after { content:''; position:absolute; bottom:2px; right:2px; width:8px; height:8px; border-right:2px solid rgba(200,200,200,0.4); border-bottom:2px solid rgba(200,200,200,0.4); }
+        .toolbar { position:fixed; background: rgba(30,30,30,0.95); backdrop-filter: blur(10px); border:1px solid rgba(200,200,200,0.2); border-radius:8px; padding:8px; display:none; z-index:10001; gap:4px; }
+        .toolbar.active { display:flex; }
+        .toolbar button { background: rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; padding:6px 10px; border-radius:4px; cursor:pointer; font-size:11px; }
+        .toolbar input[type="color"] { width:30px; height:28px; border-radius:4px; border:1px solid rgba(255,255,255,0.2); }
+        .toolbar select { background: rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; padding:6px 8px; border-radius:4px; font-size:11px; }
+
+        .divider { width:1px; background: rgba(255,255,255,0.2); margin:0 4px; }
+
+        /* Slider */
+        .settings-menu input[type="range"] { width:100px; }
+    </style>
+</head>
+<body>
+    <button class="settings-btn" onclick="toggleMenu()" title="Ayarlar">
+        <span></span><span></span><span></span>
+    </button>
+
+    <div class="settings-menu" id="settingsMenu">
+        <div class="menu-item" onclick="toggleTheme()">
+            <span class="menu-item-label">Tema</span>
+            <span class="menu-item-value" id="themeValue">Gece</span>
+        </div>
+        <div class="menu-item">
+            <span class="menu-item-label">Arka Plan Opasitesi</span>
+            <input type="range" id="bgOpacitySlider" min="0.1" max="1" step="0.01" value="1" onchange="changeBgOpacity(this.value)">
+        </div>
+        <div class="add-card-item" onclick="addCard(); toggleMenu()">
+            <span>+</span>
+            <span>Yeni Kart Ekle</span>
+        </div>
+    </div>
+
+    <div class="toolbar" id="toolbar">
+        <button onclick="formatText('bold')" title="Kalın"><b>B</b></button>
+        <button onclick="formatText('italic')" title="İtalik"><i>I</i></button>
+        <button onclick="formatText('underline')" title="Altını Çiz"><u>U</u></button>
+        <button onclick="formatText('strikeThrough')" title="Üstünü Çiz"><s>S</s></button>
+        <div class="divider"></div>
+        <input type="color" id="textColor" value="#ffffff" onchange="changeColor(this.value)" title="Yazı Rengi">
+        <input type="color" id="bgColor" value="#ffff00" onchange="changeHighlight(this.value)" title="Highlight">
+        <button onclick="formatText('removeFormat')" title="Formatı Temizle">✕</button>
+        <div class="divider"></div>
+        <select onchange="changeFontSize(this.value)" title="Yazı Boyutu">
+            <option value="12">12px</option>
+            <option value="14">14px</option>
+            <option value="16" selected>16px</option>
+            <option value="18">18px</option>
+            <option value="20">20px</option>
+            <option value="22">22px</option>
+            <option value="24">24px</option>
+            <option value="26">26px</option>
+            <option value="28">28px</option>
+            <option value="30">30px</option>
+        </select>
+    </div>
+
+    <div id="cards-container"></div>
+
+    <script>
+        let cards=[]; let isDayMode=false;
+
+        function toggleMenu() { document.getElementById('settingsMenu').classList.toggle('active'); }
+        function toggleTheme() {
+            isDayMode=!isDayMode;
+            document.body.classList.toggle('day-mode');
+            document.getElementById('themeValue').textContent=isDayMode?'Gündüz':'Gece';
+            localStorage.setItem('theme', isDayMode?'day':'night');
+            const opacity = document.getElementById('bgOpacitySlider').value;
+            document.body.style.backgroundColor = isDayMode?`rgba(255,255,255,${opacity})`:`rgba(38,38,36,${opacity})`;
+        }
+
+        function changeBgOpacity(value){
+            localStorage.setItem('bgOpacity',value);
+            document.body.style.backgroundColor = isDayMode?`rgba(255,255,255,${value})`:`rgba(38,38,36,${value})`;
+        }
+
+        function addCard() {
+            const id = Date.now();
+            const card = {id:id, x:50, y:50, width:200, height:150, title:'Başlık', content:''};
+            cards.push(card);
+            createCardElement(card);
+            saveCards();
+        }
+
+        function createCardElement(card){
+            const container = document.getElementById('cards-container');
+            const cardEl = document.createElement('div'); cardEl.className='card'; cardEl.style.left=card.x+'px'; cardEl.style.top=card.y+'px'; cardEl.style.width=card.width+'px'; cardEl.style.height=card.height+'px'; cardEl.dataset.id=card.id;
+
+            const header = document.createElement('div'); header.className='card-header';
+            const title = document.createElement('div'); title.className='card-title'; title.contentEditable=true; title.innerText=card.title;
+            title.addEventListener('input',()=>{ card.title=title.innerText; saveCards(); });
+            title.addEventListener('mousedown', (e) => { e.stopPropagation(); });
+            const del = document.createElement('button'); del.className='delete-btn'; del.innerText='✕';
+            del.onclick=()=>{ cardEl.remove(); cards=cards.filter(c=>c.id!==card.id); saveCards(); };
+            del.addEventListener('mousedown', (e) => { e.stopPropagation(); });
+            header.appendChild(title); header.appendChild(del);
+            cardEl.appendChild(header);
+
+            const editor = document.createElement('div'); editor.className='editor'; editor.contentEditable=true; editor.dataset.placeholder='Notunuzu yazın...'; editor.innerHTML=card.content;
+            editor.addEventListener('input',()=>{ card.content=editor.innerHTML; saveCards(); });
+            cardEl.appendChild(editor);
+
+            const resize = document.createElement('div'); resize.className='resize-handle';
+            resize.addEventListener('mousedown', e=>initResize(e, cardEl, card));
+            cardEl.appendChild(resize);
+
+            header.addEventListener('mousedown', e=>{ if(e.target===header) initDrag(e, cardEl, card); });
+            container.appendChild(cardEl);
+        }
+
+        function initDrag(e, el, card){
+            e.preventDefault();
+            let offsetX=e.clientX-el.offsetLeft; let offsetY=e.clientY-el.offsetTop;
+            function move(e){
+                el.style.left=(e.clientX-offsetX)+'px';
+                el.style.top=(e.clientY-offsetY)+'px';
+                card.x=e.clientX-offsetX; card.y=e.clientY-offsetY;
+            }
+            function up(){ document.removeEventListener('mousemove',move); document.removeEventListener('mouseup',up); saveCards(); }
+            document.addEventListener('mousemove',move); document.addEventListener('mouseup',up);
+        }
+
+        function initResize(e, el, card){
+            e.preventDefault();
+            let startX=e.clientX; let startY=e.clientY;
+            let startWidth=el.offsetWidth; let startHeight=el.offsetHeight;
+            function move(e){
+                el.style.width=startWidth+(e.clientX-startX)+'px';
+                el.style.height=startHeight+(e.clientY-startY)+'px';
+                card.width=startWidth+(e.clientX-startX);
+                card.height=startHeight+(e.clientY-startY);
+            }
+            function up(){ document.removeEventListener('mousemove',move); document.removeEventListener('mouseup',up); saveCards(); }
+            document.addEventListener('mousemove',move); document.addEventListener('mouseup',up);
+        }
+
+        function saveCards(){ localStorage.setItem('draggableCards',JSON.stringify(cards)); }
+
+        function formatText(command) {
+            document.execCommand(command, false, null);
+        }
+
+        function changeColor(color) {
+            document.execCommand('foreColor', false, color);
+        }
+
+        function changeHighlight(color) {
+            document.execCommand('backColor', false, color);
+        }
+
+        function changeFontSize(size) {
+            document.execCommand('fontSize', false, size);
+        }
+
+        function showToolbar(e) {
+            const toolbar = document.getElementById('toolbar');
+            toolbar.style.left = e.clientX + 'px';
+            toolbar.style.top = (e.clientY - 40) + 'px';
+            toolbar.classList.add('active');
+        }
+
+        function hideToolbar() {
+            setTimeout(() => {
+                const toolbar = document.getElementById('toolbar');
+                if (!toolbar.matches(':hover')) {
+                    toolbar.classList.remove('active');
+                }
+            }, 100);
+        }
+
+        window.onload=function(){
+            const saved=localStorage.getItem('draggableCards');
+            if(saved){ cards=JSON.parse(saved); cards.forEach(c=>createCardElement(c)); } else { addCard(); }
+            const savedTheme=localStorage.getItem('theme');
+            if(savedTheme==='day'){ isDayMode=true; document.body.classList.add('day-mode'); document.getElementById('themeValue').textContent='Gündüz'; }
+            const savedOpacity = localStorage.getItem('bgOpacity') || 1;
+            document.getElementById('bgOpacitySlider').value=savedOpacity;
+            document.body.style.backgroundColor = isDayMode?`rgba(255,255,255,${savedOpacity})`:`rgba(38,38,36,${savedOpacity})`;
+
+            document.addEventListener('mouseup', () => {
+                const selection = window.getSelection().toString();
+                if (selection.length > 0) {
+                    showToolbar(event);
+                } else {
+                    hideToolbar();
+                }
+            });
+        }
+    </script>
+</body>
+</html>
